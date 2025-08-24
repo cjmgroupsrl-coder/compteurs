@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compteur d'Heures - Chauffeurs Livreurs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .pulse-green {
+            animation: pulse-green 2s infinite;
+        }
+        
+        @keyframes pulse-green {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-indigo-600 flex items-center justify-center z-50">
+        <div class="text-center text-white">
+            <div class="text-6xl mb-4">🚛</div>
+            <h1 class="text-2xl font-bold mb-2">Compteur d'Heures</h1>
+            <p class="text-indigo-200">Chauffeurs Livreurs</p>
+            <div class="mt-4">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications -->
+    <div id="notification-container" class="fixed top-4 right-4 z-40 space-y-2"></div>
+
+    <!-- Main App Container -->
+    <div id="app-container" class="hidden">
+        <!-- Login Screen -->
+        <div id="login-screen" class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+                <div class="text-center mb-8">
+                    <div class="text-6xl mb-4">🕐</div>
+                    <h1 class="text-2xl font-bold text-gray-900 mb-2">Compteur d'Heures</h1>
+                    <p class="text-gray-600">Chauffeurs Livreurs - Suivi Mensuel</p>
+                </div>
+
+                <form id="login-form" class="space-y-4">
+                    <div id="login-error" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm"></div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Nom d'utilisateur</label>
+                        <select id="username" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">Sélectionner votre nom...</option>
+                            <option value="admin">👤 Administrateur</option>
+                            <optgroup label="Chauffeurs">
+                                <option value="Valentin">🚛 Valentin</option>
+                                <option value="Pierre">🚛 Pierre</option>
+                                <option value="Steve C">🚛 Steve C</option>
+                                <option value="Steeve G">🚛 Steeve G</option>
+                                <option value="Antho">🚛 Antho</option>
+                                <option value="Julien G">🚛 Julien G</option>
+                                <option value="Alexis">🚛 Alexis</option>
+                                <option value="Brice">🚛 Brice</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Mot de passe</label>
+                        <div class="relative">
+                            <input type="password" id="password" required 
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                placeholder="Saisissez votre mot de passe">
+                            <button type="button" id="toggle-password" 
+                                class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-eye h-4 w-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" 
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 rounded-lg font-medium transition-colors">
+                        Se connecter
+                    </button>
+                </form>
+
+                <!-- Password Info -->
+                <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div class="flex items-start">
+                        <i class="fas fa-exclamation-triangle text-yellow-600 mt-1 mr-3"></i>
+                        <div>
+                            <h3 class="text-sm font-medium text-yellow-800">Première connexion</h3>
+                            <div class="text-xs text-yellow-700 mt-1">
+                                <p class="mb-2">Mots de passe par défaut :</p>
+                                <p><strong>Admin:</strong> admin123</p>
+                                <p><strong>Chauffeurs:</strong> [prénom]123</p>
+                                <p class="italic mt-2">Exemple: Valentin → val123</p>
+                                <p class="mt-2 font-medium">⚠️ Changez votre mot de passe après la première connexion !</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Driver Dashboard -->
+        <div id="driver-screen" class="hidden min-h-screen bg-gray-50">
+            <!-- Driver Header -->
+            <div class="bg-white shadow-sm border-b">
+                <div class="max-w-6xl mx-auto px-4 py-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-user h-6 w-6 text-indigo-600"></i>
+                            <div>
+                                <h1 id="driver-name" class="font-semibold text-gray-900">Bonjour</h1>
+                                <p class="text-sm text-gray-500">Suivi des heures</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="driver-refresh" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                🔄 Actualiser
+                            </button>
+                            <button id="driver-logout" class="text-gray-600 hover:text-gray-900 transition-colors px-3 py-2">
+                                <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Month Navigation -->
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="flex items-center justify-between">
+                            <button id="prev-month" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                                <i class="fas fa-chevron-left text-gray-600"></i>
+                            </button>
+                            <div class="text-center">
+                                <h2 id="current-month-year" class="text-xl font-semibold text-gray-900">
+                                    Janvier 2025
+                                </h2>
+                                <p class="text-sm text-gray-500">Consultation de mes heures</p>
+                            </div>
+                            <button id="next-month" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                                <i class="fas fa-chevron-right text-gray-600"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Driver Content -->
+            <div class="max-w-6xl mx-auto p-4 space-y-6">
+                <!-- Driver Stats -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <div id="driver-hours-worked" class="text-2xl font-bold text-green-600">0.0h</div>
+                        <div class="text-sm text-gray-500">Heures travaillées</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <div id="driver-hours-paid" class="text-2xl font-bold text-blue-600">0.0h</div>
+                        <div class="text-sm text-gray-500">Heures payées</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <div id="driver-hours-recovery" class="text-2xl font-bold text-purple-600">0.0h</div>
+                        <div class="text-sm text-gray-500">Heures récup</div>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow border-l-4 border-l-indigo-500 col-span-2 lg:col-span-1">
+                        <div id="driver-balance" class="text-3xl font-bold text-green-600">0.0h</div>
+                        <div class="text-sm text-gray-500 font-medium">💼 MON SOLDE</div>
+                        <div id="driver-balance-status" class="text-xs text-gray-400">⚡ Compte équilibré</div>
+                    </div>
+                </div>
+
+                <!-- Driver Entries Table -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-4 border-b">
+                        <h2 class="font-semibold text-gray-900 flex items-center gap-2">
+                            📋 Mes Entrées - <span id="entries-month-year">Janvier 2025</span>
+                        </h2>
+                        <p class="text-sm text-gray-500 mt-1">Historique de vos heures (saisie par l'administration)</p>
+                    </div>
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full min-w-[600px]">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Période</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">H. Travaillées</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">H. Payées</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">H. Récup</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Récupération</th>
+                                    <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Saisie le</th>
+                                </tr>
+                            </thead>
+                            <tbody id="driver-entries-tbody" class="divide-y divide-gray-200">
+                                <tr>
+                                    <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                                        <div class="text-4xl mb-2">📝</div>
+                                        <p>Aucune entrée pour ce mois</p>
+                                        <p class="text-xs mt-1">Les heures sont saisies par l'administration</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Info Message -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex items-start gap-3">
+                        <i class="fas fa-info-circle text-blue-600 mt-0.5"></i>
+                        <div>
+                            <h3 class="text-sm font-medium text-blue-800">Information</h3>
+                            <p class="text-sm text-blue-700 mt-1">
+                                Vous consultez vos heures en lecture seule. Pour toute modification ou ajout, 
+                                contactez votre responsable qui procédera à la saisie via l'interface d'administration.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Dashboard -->
+        <div id="admin-screen" class="hidden min-h-screen bg-gray-50">
+            <!-- Admin Header -->
+            <div class="bg-white shadow-sm border-b">
+                <div class="max-w-7xl mx-auto px-4 py-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-cogs h-6 w-6 text-indigo-600"></i>
+                            <div>
+                                <h1 class="font-semibold text-gray-900">Administration</h1>
+                                <p class="text-sm text-gray-500">Gestion des heures chauffeurs</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="admin-refresh" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                🔄 Sync
+                            </button>
+                            <button id="manual-save" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">
+                                <i class="fas fa-save mr-2"></i>Sauvegarder
+                            </button>
+                            <button id="admin-logout" class="text-gray-600 hover:text-gray-900 transition-colors px-3 py-2">
+                                <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Admin Navigation -->
+                    <div class="flex space-x-1 bg-gray-100 rounded-lg p-1">
+                        <button id="nav-dashboard" class="px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 text-center bg-white text-indigo-600 shadow-sm">
+                            📊 Dashboard
+                        </button>
+                        <button id="nav-saisie" class="px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 text-center text-gray-600 hover:text-gray-900">
+                            📝 Saisie & Détails
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Dashboard View -->
+            <div id="admin-dashboard-view" class="max-w-7xl mx-auto p-4 space-y-6">
+                <!-- Global Stats -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Heures Travaillées</p>
+                                <p id="global-worked" class="text-3xl font-bold text-green-600">0h</p>
+                            </div>
+                            <div class="p-3 bg-green-100 rounded-full">
+                                <i class="fas fa-clock h-6 w-6 text-green-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Heures Payées</p>
+                                <p id="global-paid" class="text-3xl font-bold text-blue-600">0h</p>
+                            </div>
+                            <div class="p-3 bg-blue-100 rounded-full">
+                                <i class="fas fa-calendar h-6 w-6 text-blue-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Heures Récup</p>
+                                <p id="global-recovery" class="text-3xl font-bold text-purple-600">0h</p>
+                            </div>
+                            <div class="p-3 bg-purple-100 rounded-full">
+                                <i class="fas fa-user h-6 w-6 text-purple-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Solde Global</p>
+                                <p id="global-balance" class="text-3xl font-bold text-green-600">0h</p>
+                            </div>
+                            <div id="global-balance-icon" class="p-3 bg-green-100 rounded-full">
+                                <i class="fas fa-users h-6 w-6 text-green-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-lg shadow col-span-2 sm:col-span-3 lg:col-span-1">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Chauffeurs Actifs</p>
+                                <p id="active-drivers" class="text-3xl font-bold text-indigo-600">0/8</p>
+                            </div>
+                            <div class="p-3 bg-indigo-100 rounded-full">
+                                <i class="fas fa-users h-6 w-6 text-indigo-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Drivers Summary Table -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b">
+                        <h2 class="text-lg font-semibold text-gray-900">Résumé par Chauffeur</h2>
+                        <p id="summary-period" class="text-sm text-gray-500 mt-1">Janvier 2025</p>
+                    </div>
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full min-w-[700px]">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Chauffeur</th>
+                                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Entrées</th>
+                                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">H. Travaillées</th>
+                                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">H. Payées</th>
+                                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">H. Récup</th>
+                                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Solde</th>
+                                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-500">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="drivers-summary-tbody" class="divide-y divide-gray-200">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Saisie View -->
+            <div id="admin-saisie-view" class="hidden max-w-6xl mx-auto p-4 grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <!-- Month Navigation -->
+                <div class="xl:col-span-3">
+                    <div class="bg-white rounded-lg shadow p-4 mb-6">
+                        <div class="flex items-center justify-between">
+                            <button id="admin-prev-month" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                                <i class="fas fa-chevron-left text-gray-600"></i>
+                            </button>
+                            <div class="text-center">
+                                <h2 id="admin-current-month-year" class="text-xl font-semibold text-gray-900">
+                                    Janvier 2025
+                                </h2>
+                                <p class="text-sm text-gray-500">Saisie et suivi détaillé</p>
+                            </div>
+                            <button id="admin-next-month" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                                <i class="fas fa-chevron-right text-gray-600"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Entry Form -->
+                <div class="xl:col-span-1">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4">
+                            Saisie des heures
+                            <span id="form-period" class="ml-2 text-sm font-normal text-indigo-600 block sm:inline"></span>
+                        </h2>
+                        <form id="entry-form" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Chauffeur</label>
+                                <select id="entry-driver" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                    <option value="">Sélectionner...</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Mois travaillé</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <select id="entry-month" required class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                        <option value="">Mois...</option>
+                                    </select>
+                                    <select id="entry-year" required class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                        <option value="">Année...</option>
+                                    </select>
+                                </div>
+                                <div class="flex gap-2 mt-2">
+                                    <button type="button" id="btn-this-month" class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors">
+                                        Ce mois
+                                    </button>
+                                    <button type="button" id="btn-last-month" class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded hover:bg-gray-200 transition-colors">
+                                        Mois dernier
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Heures travaillées</label>
+                                    <input type="number" id="entry-hours-worked" step="0.1" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Heures payées</label>
+                                    <input type="number" id="entry-hours-paid" step="0.1" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="0">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Heures récup</label>
+                                    <input type="number" id="entry-hours-recovery" step="0.1" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="0">
+                                </div>
+                            </div>
+
+                            <!-- Recovery Type -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Récupération programmée</label>
+                                <div class="space-y-2">
+                                    <label class="flex items-center text-sm">
+                                        <input type="radio" name="recoveryType" value="none" checked class="mr-2">
+                                        <span>Aucune récupération programmée</span>
+                                    </label>
+                                    <label class="flex items-center text-sm">
+                                        <input type="radio" name="recoveryType" value="single" class="mr-2">
+                                        <span>📅 Un jour spécifique</span>
+                                    </label>
+                                    <label class="flex items-center text-sm">
+                                        <input type="radio" name="recoveryType" value="period" class="mr-2">
+                                        <span>📅 Une période (plusieurs jours)</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Single Date -->
+                            <div id="single-date-section" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">📅 Date de récupération</label>
+                                <input type="date" id="recovery-date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            </div>
+
+                            <!-- Period Dates -->
+                            <div id="period-dates-section" class="hidden bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-3">
+                                <h4 class="text-sm font-medium text-purple-800">📅 Période de récupération</h4>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Du</label>
+                                        <input type="date" id="recovery-start-date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-600 mb-1">Au</label>
+                                        <input type="date" id="recovery-end-date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors">
+                                <i class="fas fa-save"></i>
+                                Enregistrer
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Add Driver -->
+                    <div class="bg-white rounded-lg shadow p-6 mt-6">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Ajouter un chauffeur</h2>
+                        <div class="flex gap-2">
+                            <input type="text" id="new-driver-name" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="Nom du chauffeur">
+                            <button id="add-driver-btn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+                                <i class="fas fa-plus"></i>
+                                Ajouter
+                            </button>
+                        </div>
+                        
+                        <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div class="flex items-start">
+                                <i class="fas fa-info-circle text-blue-600 mt-0.5 mr-3"></i>
+                                <div>
+                                    <h3 class="text-sm font-medium text-blue-800">Mots de passe automatiques</h3>
+                                    <p class="text-xs text-blue-700 mt-1">
+                                        Les nouveaux chauffeurs reçoivent un mot de passe par défaut : <strong>[3 premières lettres]123</strong>
+                                        <br />
+                                        <span class="italic">Exemple: "Valentin" → mot de passe "val123"</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <p class="text-sm text-gray-600 mb-2">Chauffeurs actuels :</p>
+                            <div id="current-drivers" class="flex flex-wrap gap-2">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monthly Overview & Entries -->
+                <div class="xl:col-span-2 space-y-6">
+                    <!-- Monthly Overview -->
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-6 border-b">
+                            <h2 id="monthly-overview-title" class="font-semibold text-gray-900">Vue mensuelle - Janvier 2025</h2>
+                        </div>
+                        <div class="overflow-x-auto custom-scrollbar">
+                            <table class="w-full min-w-[500px]">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Chauffeur</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">H. Travaillées</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">H. Payées</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">H. Récup</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Solde Mensuel</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="monthly-overview-tbody" class="divide-y divide-gray-200">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Monthly Entries -->
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-6 border-b">
+                            <h2 id="monthly-entries-title" class="font-semibold text-gray-900">Entrées - Janvier 2025</h2>
+                        </div>
+                        <div class="overflow-x-auto custom-scrollbar">
+                            <table class="w-full min-w-[800px]">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Période</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Chauffeur</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">H. Travaillées</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">H. Payées</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">H. Récup</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Date Récup</th>
+                                        <th class="px-4 py-3 text-left text-sm font-medium text-gray-500">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="monthly-entries-tbody" class="divide-y divide-gray-200">
+                                    <tr>
+                                        <td colspan="7" class="px-4 py-8 text-center text-gray-500 text-sm">
+                                            Aucune entrée pour ce mois
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Confirmer la suppression</h3>
+            <p class="text-gray-600 mb-6">Êtes-vous sûr de vouloir supprimer cette entrée ? Cette action est irréversible.</p>
+            <div class="flex gap-3 justify-end">
+                <button id="cancel-delete" class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">
+                    Annuler
+                </button>
+                <button id="confirm-delete" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                    Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Application State
+        let appState = {
+            currentUser: null,
+            userRole: null,
+            drivers: ['Valentin', 'Pierre', 'Steve C', 'Steeve G', 'Antho', 'Julien G', 'Alexis', 'Brice'],
+            entries: [],
+            passwords: {
+                'admin': 'admin123',
+                'Valentin': 'val123',
+                'Pierre': 'pie123', 
+                'Steve C': 'stc123',
+                'Steeve G': 'stg123',
+                'Antho': 'ant123',
+                'Julien G': 'jul123',
+                'Alexis': 'ale123',
+                'Brice': 'bri123'
+            },
+            currentMonth: new Date().getMonth(),
+            currentYear: new Date().getFullYear(),
+            selectedEntryId: null
+        };
+
+        // Utility Functions
+        function getMonthName(month) {
+            const months = [
+                'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+                'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+            ];
+            return months[month];
+        }
+
+        function showNotification(message, type = 'success') {
+            const container = document.getElementById('notification-container');
+            const notification = document.createElement('div');
+            notification.className = `px-4 py-3 rounded-lg shadow-lg text-white fade-in ${
+                type === 'error' ? 'bg-red-500' : 'bg-green-500'
+            }`;
+            notification.textContent = message;
+            
+            container.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 3000);
+        }
+
+        // Storage Functions
+        function saveToStorage() {
+            try {
+                localStorage.setItem('drivers-hours-drivers', JSON.stringify(appState.drivers));
+                localStorage.setItem('drivers-hours-entries', JSON.stringify(appState.entries));
+                localStorage.setItem('drivers-hours-passwords', JSON.stringify(appState.passwords));
+                console.log('✅ Données sauvegardées:', {
+                    drivers: appState.drivers.length,
+                    entries: appState.entries.length
+                });
+            } catch (e) {
+                console.error('❌ Erreur sauvegarde:', e);
+                showNotification('Erreur lors de la sauvegarde', 'error');
+            }
+        }
+
+        function loadFromStorage() {
+            try {
+                const savedDrivers = localStorage.getItem('drivers-hours-drivers');
+                const savedEntries = localStorage.getItem('drivers-hours-entries');
+                const savedPasswords = localStorage.getItem('drivers-hours-passwords');
+                
+                if (savedDrivers) {
+                    appState.drivers = JSON.parse(savedDrivers);
+                }
+                
+                if (savedEntries) {
+                    appState.entries = JSON.parse(savedEntries);
+                }
+                
+                if (savedPasswords) {
+                    appState.passwords = { ...appState.passwords, ...JSON.parse(savedPasswords) };
+                }
+                
+                console.log('✅ Données chargées:', {
+                    drivers: appState.drivers.length,
+                    entries: appState.entries.length
+                });
+            } catch (e) {
+                console.error('❌ Erreur chargement:', e);
+                saveToStorage(); // Sauvegarder les données par défaut
+            }
+        }
+
+        // Authentication Functions
+        function login(username, password) {
+            if (appState.passwords[username] !== password) {
+                return false;
+            }
+
+            appState.currentUser = username;
+            appState.userRole = username === 'admin' ? 'admin' : 'driver';
+            
+            hideAllScreens();
+            
+            if (appState.userRole === 'admin') {
+                showAdminScreen();
+            } else {
+                showDriverScreen();
+            }
+            
+            return true;
+        }
+
+        function logout() {
+            appState.currentUser = null;
+            appState.userRole = null;
+            hideAllScreens();
+            document.getElementById('login-screen').classList.remove('hidden');
+            showNotification('Déconnexion réussie');
+        }
+
+        // Screen Management
+        function hideAllScreens() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('driver-screen').classList.add('hidden');
+            document.getElementById('admin-screen').classList.add('hidden');
+            document.getElementById('admin-dashboard-view').classList.remove('hidden');
+            document.getElementById('admin-saisie-view').classList.add('hidden');
+        }
+
+        function showDriverScreen() {
+            document.getElementById('driver-screen').classList.remove('hidden');
+            document.getElementById('driver-name').textContent = `Bonjour ${appState.currentUser}`;
+            updateDriverView();
+        }
+
+        function showAdminScreen() {
+            document.getElementById('admin-screen').classList.remove('hidden');
+            updateAdminView();
+        }
+
+        // Data Calculation Functions
+        function calculateMonthlyBalance(driverName, month, year) {
+            const monthEntries = appState.entries.filter(entry => {
+                if (entry.month !== undefined && entry.year !== undefined) {
+                    return entry.month === month && entry.year === year && entry.driver === driverName;
+                }
+                return false;
+            });
+            
+            const totals = monthEntries.reduce((acc, entry) => {
+                acc.totalWorked += entry.hoursWorked;
+                acc.totalPaid += entry.hoursPaid;
+                acc.totalRecovery += entry.recoveryHours;
+                return acc;
+            }, { totalWorked: 0, totalPaid: 0, totalRecovery: 0 });
+
+            const balance = totals.totalWorked - totals.totalPaid - totals.totalRecovery;
+            
+            return {
+                ...totals,
+                balance,
+                entries: monthEntries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+            };
+        }
+
+        function calculateGlobalStats() {
+            const currentMonthEntries = appState.entries.filter(entry => {
+                if (entry.month !== undefined && entry.year !== undefined) {
+                    return entry.month === appState.currentMonth && entry.year === appState.currentYear;
+                }
+                return false;
+            });
+
+            const totals = currentMonthEntries.reduce((acc, entry) => {
+                acc.totalWorked += entry.hoursWorked;
+                acc.totalPaid += entry.hoursPaid;
+                acc.totalRecovery += entry.recoveryHours;
+                return acc;
+            }, { totalWorked: 0, totalPaid: 0, totalRecovery: 0 });
+
+            const globalBalance = totals.totalWorked - totals.totalPaid - totals.totalRecovery;
+
+            // Driver stats
+            const driverStats = {};
+            let activeDrivers = 0;
+            
+            appState.drivers.forEach(driver => {
+                const driverEntries = currentMonthEntries.filter(entry => entry.driver === driver);
+                const driverTotals = driverEntries.reduce((acc, entry) => {
+                    acc.totalWorked += entry.hoursWorked;
+                    acc.totalPaid += entry.hoursPaid;
+                    acc.totalRecovery += entry.recoveryHours;
+                    return acc;
+                }, { totalWorked: 0, totalPaid: 0, totalRecovery: 0 });
+
+                if (driverEntries.length > 0) activeDrivers++;
+
+                driverStats[driver] = {
+                    ...driverTotals,
+                    balance: driverTotals.totalWorked - driverTotals.totalPaid - driverTotals.totalRecovery,
+                    entriesCount: driverEntries.length
+                };
+            });
+
+            return {
+                ...totals,
+                globalBalance,
+                driverStats,
+                totalDrivers: appState.drivers.length,
+                activeDrivers
+            };
+        }
+
+        // View Update Functions
+        function updateDriverView() {
+            const monthYearText = `${getMonthName(appState.currentMonth)} ${appState.currentYear}`;
+            document.getElementById('current-month-year').textContent = monthYearText;
+            document.getElementById('entries-month-year').textContent = monthYearText;
+            
+            const balance = calculateMonthlyBalance(appState.currentUser, appState.currentMonth, appState.currentYear);
+            
+            // Update stats
+            document.getElementById('driver-hours-worked').textContent = `${balance.totalWorked.toFixed(1)}h`;
+            document.getElementById('driver-hours-paid').textContent = `${balance.totalPaid.toFixed(1)}h`;
+            document.getElementById('driver-hours-recovery').textContent = `${balance.totalRecovery.toFixed(1)}h`;
+            
+            const balanceEl = document.getElementById('driver-balance');
+            const statusEl = document.getElementById('driver-balance-status');
+            
+            balanceEl.textContent = `${balance.balance > 0 ? '+' : ''}${balance.balance.toFixed(1)}h`;
+            balanceEl.className = `text-3xl font-bold ${balance.balance >= 0 ? 'text-green-600' : 'text-red-600'}`;
+            
+            if (balance.balance > 0) {
+                statusEl.textContent = '✅ Heures en crédit';
+            } else if (balance.balance < 0) {
+                statusEl.textContent = '⚠️ Heures en débit';
+            } else {
+                statusEl.textContent = '⚡ Compte équilibré';
+            }
+            
+            // Update entries table
+            const tbody = document.getElementById('driver-entries-tbody');
+            tbody.innerHTML = '';
+            
+            if (balance.entries.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                            <div class="text-4xl mb-2">📝</div>
+                            <p>Aucune entrée pour ce mois</p>
+                            <p class="text-xs mt-1">Les heures sont saisies par l'administration</p>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                balance.entries.forEach(entry => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-50';
+                    
+                    let recoveryInfo = '';
+                    if (entry.recoveryType === 'period' && entry.recoveryStartDate && entry.recoveryEndDate) {
+                        recoveryInfo = `
+                            <div class="text-xs">
+                                <div class="font-medium text-purple-700">📅 Période</div>
+                                <div>${new Date(entry.recoveryStartDate).toLocaleDateString('fr-FR')}</div>
+                                <div>↓</div>
+                                <div>${new Date(entry.recoveryEndDate).toLocaleDateString('fr-FR')}</div>
+                            </div>
+                        `;
+                    } else if (entry.recoveryDate) {
+                        recoveryInfo = `
+                            <div class="text-xs">
+                                <div class="font-medium text-blue-700">📅 Jour</div>
+                                <div>${new Date(entry.recoveryDate).toLocaleDateString('fr-FR')}</div>
+                            </div>
+                        `;
+                    } else if (entry.recoveryHours > 0) {
+                        recoveryInfo = '<div class="text-xs text-gray-400">Non planifiée</div>';
+                    } else {
+                        recoveryInfo = '<div class="text-xs text-gray-400">-</div>';
+                    }
+                    
+                    row.innerHTML = `
+                        <td class="px-4 py-3 text-sm">
+                            ${entry.month !== undefined ? `${getMonthName(entry.month)} ${entry.year}` : new Date(entry.date).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-green-600 font-medium">${entry.hoursWorked}h</td>
+                        <td class="px-4 py-3 text-sm text-blue-600 font-medium">${entry.hoursPaid}h</td>
+                        <td class="px-4 py-3 text-sm text-purple-600 font-medium">${entry.recoveryHours}h</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">${recoveryInfo}</td>
+                        <td class="px-4 py-3 text-sm text-gray-500">
+                            ${new Date(entry.timestamp).toLocaleDateString('fr-FR')}
+                        </td>
+                    `;
+                    
+                    tbody.appendChild(row);
+                });
+            }
+        }
+
+        function updateAdminView() {
+            // Update current view
+            if (!document.getElementById('admin-saisie-view').classList.contains('hidden')) {
+                updateAdminSaisieView();
+            } else {
+                updateAdminDashboardView();
+            }
+        }
+
+        function updateAdminDashboardView() {
+            const stats = calculateGlobalStats();
+            
+            // Update global stats
+            document.getElementById('global-worked').textContent = `${stats.totalWorked.toFixed(1)}h`;
+            document.getElementById('global-paid').textContent = `${stats.totalPaid.toFixed(1)}h`;
+            document.getElementById('global-recovery').textContent = `${stats.totalRecovery.toFixed(1)}h`;
+            document.getElementById('active-drivers').textContent = `${stats.activeDrivers}/${stats.totalDrivers}`;
+            
+            const balanceEl = document.getElementById('global-balance');
+            const iconEl = document.getElementById('global-balance-icon');
+            
+            balanceEl.textContent = `${stats.globalBalance > 0 ? '+' : ''}${stats.globalBalance.toFixed(1)}h`;
+            
+            if (stats.globalBalance >= 0) {
+                balanceEl.className = 'text-3xl font-bold text-green-600';
+                iconEl.className = 'p-3 bg-green-100 rounded-full';
+                iconEl.innerHTML = '<i class="fas fa-users h-6 w-6 text-green-600"></i>';
+            } else {
+                balanceEl.className = 'text-3xl font-bold text-red-600';
+                iconEl.className = 'p-3 bg-red-100 rounded-full';
+                iconEl.innerHTML = '<i class="fas fa-users h-6 w-6 text-red-600"></i>';
+            }
+            
+            // Update period text
+            document.getElementById('summary-period').textContent = `${getMonthName(appState.currentMonth)} ${appState.currentYear}`;
+            
+            // Update drivers summary table
+            const tbody = document.getElementById('drivers-summary-tbody');
+            tbody.innerHTML = '';
+            
+            appState.drivers
+                .sort((a, b) => stats.driverStats[b].balance - stats.driverStats[a].balance)
+                .forEach(driver => {
+                    const driverStats = stats.driverStats[driver];
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-50';
+                    
+                    let statusBadge = '';
+                    if (driverStats.entriesCount === 0) {
+                        statusBadge = '<span class="inline-flex px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-600 rounded-full">Inactif</span>';
+                    } else if (driverStats.balance > 0) {
+                        statusBadge = '<span class="inline-flex px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded-full">Créditeur</span>';
+                    } else if (driverStats.balance < 0) {
+                        statusBadge = '<span class="inline-flex px-2 py-1 text-xs font-semibold bg-red-100 text-red-700 rounded-full">Débiteur</span>';
+                    } else {
+                        statusBadge = '<span class="inline-flex px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-700 rounded-full">Équilibré</span>';
+                    }
+                    
+                    row.innerHTML = `
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">${driver}</td>
+                        <td class="px-6 py-4 text-sm text-gray-500">${driverStats.entriesCount}</td>
+                        <td class="px-6 py-4 text-sm text-green-600 font-medium">${driverStats.totalWorked.toFixed(1)}h</td>
+                        <td class="px-6 py-4 text-sm text-blue-600 font-medium">${driverStats.totalPaid.toFixed(1)}h</td>
+                        <td class="px-6 py-4 text-sm text-purple-600 font-medium">${driverStats.totalRecovery.toFixed(1)}h</td>
+                        <td class="px-6 py-4 text-sm font-bold ${driverStats.balance >= 0 ? 'text-green-600' : 'text-red-600'}">
+                            ${driverStats.balance > 0 ? '+' : ''}${driverStats.balance.toFixed(1)}h
+                        </td>
+                        <td class="px-6 py-4 text-sm">${statusBadge}</td>
+                    `;
+                    
+                    tbody.appendChild(row);
+                });
+        }
+
+        function updateAdminSaisieView() {
+            const monthYearText = `${getMonthName(appState.currentMonth)} ${appState.currentYear}`;
+            
+            // Update titles
+            document.getElementById('admin-current-month-year').textContent = monthYearText;
+            document.getElementById('monthly-overview-title').textContent = `Vue mensuelle - ${monthYearText}`;
+            document.getElementById('monthly-entries-title').textContent = `Entrées - ${monthYearText}`;
+            
+            // Update form period
+            const formPeriod = document.getElementById('entry-month').value && document.getElementById('entry-year').value
+                ? `→ ${getMonthName(parseInt(document.getElementById('entry-month').value))} ${document.getElementById('entry-year').value}`
+                : '';
+            document.getElementById('form-period').textContent = formPeriod;
+            
+            // Update monthly overview table
+            const overviewTbody = document.getElementById('monthly-overview-tbody');
+            overviewTbody.innerHTML = '';
+            
+            appState.drivers.forEach(driver => {
+                const balance = calculateMonthlyBalance(driver, appState.currentMonth, appState.currentYear);
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td class="px-4 py-3 text-sm font-medium text-gray-900">${driver}</td>
+                    <td class="px-4 py-3 text-sm text-green-600 font-medium">${balance.totalWorked.toFixed(1)}h</td>
+                    <td class="px-4 py-3 text-sm text-blue-600 font-medium">${balance.totalPaid.toFixed(1)}h</td>
+                    <td class="px-4 py-3 text-sm text-purple-600 font-medium">${balance.totalRecovery.toFixed(1)}h</td>
+                    <td class="px-4 py-3 text-sm font-bold ${balance.balance >= 0 ? 'text-green-600' : 'text-red-600'}">
+                        ${balance.balance > 0 ? '+' : ''}${balance.balance.toFixed(1)}h
+                    </td>
+                `;
+                
+                overviewTbody.appendChild(row);
+            });
+            
+            // Update monthly entries table
+            const entriesTbody = document.getElementById('monthly-entries-tbody');
+            entriesTbody.innerHTML = '';
+            
+            const monthEntries = appState.entries.filter(entry => {
+                if (entry.month !== undefined && entry.year !== undefined) {
+                    return entry.month === appState.currentMonth && entry.year === appState.currentYear;
+                }
+                return false;
+            }).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            if (monthEntries.length === 0) {
+                entriesTbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-4 py-8 text-center text-gray-500 text-sm">
+                            Aucune entrée pour ce mois
+                        </td>
+                    </tr>
+                `;
+            } else {
+                monthEntries.forEach(entry => {
+                    const row = document.createElement('tr');
+                    
+                    let recoveryInfo = '';
+                    if (entry.recoveryType === 'period' && entry.recoveryStartDate && entry.recoveryEndDate) {
+                        recoveryInfo = `
+                            <div class="text-xs">
+                                <div class="font-medium text-purple-700">📅 Période</div>
+                                <div>${new Date(entry.recoveryStartDate).toLocaleDateString('fr-FR')}</div>
+                                <div>↓</div>
+                                <div>${new Date(entry.recoveryEndDate).toLocaleDateString('fr-FR')}</div>
+                            </div>
+                        `;
+                    } else if (entry.recoveryDate) {
+                        recoveryInfo = `
+                            <div class="text-xs">
+                                <div class="font-medium text-blue-700">📅 Jour</div>
+                                <div>${new Date(entry.recoveryDate).toLocaleDateString('fr-FR')}</div>
+                            </div>
+                        `;
+                    } else if (entry.recoveryHours > 0) {
+                        recoveryInfo = '<div class="text-xs text-gray-400">Non planifiée</div>';
+                    } else {
+                        recoveryInfo = '<div class="text-xs text-gray-400">-</div>';
+                    }
+                    
+                    row.innerHTML = `
+                        <td class="px-4 py-3 text-sm">
+                            ${getMonthName(entry.month)} ${entry.year}
+                        </td>
+                        <td class="px-4 py-3 text-sm font-medium">${entry.driver}</td>
+                        <td class="px-4 py-3 text-sm text-green-600 font-medium">${entry.hoursWorked}h</td>
+                        <td class="px-4 py-3 text-sm text-blue-600 font-medium">${entry.hoursPaid}h</td>
+                        <td class="px-4 py-3 text-sm text-purple-600 font-medium">${entry.recoveryHours}h</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">${recoveryInfo}</td>
+                        <td class="px-4 py-3 text-sm">
+                            <div class="flex items-center gap-2">
+                                <button onclick="editEntry(${entry.id})" class="text-indigo-600 hover:text-indigo-900 p-1 rounded" title="Modifier">
+                                    <i class="fas fa-edit h-4 w-4"></i>
+                                </button>
+                                <button onclick="deleteEntry(${entry.id})" class="text-red-600 hover:text-red-900 p-1 rounded" title="Supprimer">
+                                    <i class="fas fa-trash h-4 w-4"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    
+                    entriesTbody.appendChild(row);
+                });
+            }
+        }
+
+        // Entry Management
+        function addEntry(formData) {
+            const newEntry = {
+                id: Date.now(),
+                driver: formData.driver,
+                month: formData.month,
+                year: formData.year,
+                hoursWorked: formData.hoursWorked,
+                hoursPaid: formData.hoursPaid,
+                recoveryHours: formData.recoveryHours,
+                recoveryType: formData.recoveryType,
+                recoveryDate: formData.recoveryDate || null,
+                recoveryStartDate: formData.recoveryStartDate || null,
+                recoveryEndDate: formData.recoveryEndDate || null,
+                timestamp: new Date().toISOString()
+            };
+            
+            appState.entries.push(newEntry);
+            saveToStorage();
+            showNotification('Entrée ajoutée avec succès !');
+            
+            // Reset form
+            document.getElementById('entry-form').reset();
+            document.querySelector('input[name="recoveryType"][value="none"]').checked = true;
+            updateRecoveryVisibility();
+            
+            updateAdminView();
+        }
+
+        function deleteEntry(entryId) {
+            appState.selectedEntryId = entryId;
+            document.getElementById('delete-modal').classList.remove('hidden');
+        }
+
+        function confirmDeleteEntry() {
+            if (appState.selectedEntryId) {
+                appState.entries = appState.entries.filter(entry => entry.id !== appState.selectedEntryId);
+                saveToStorage();
+                showNotification('Entrée supprimée avec succès !');
+                updateAdminView();
+            }
+            document.getElementById('delete-modal').classList.add('hidden');
+            appState.selectedEntryId = null;
+        }
+
+        function editEntry(entryId) {
+            // Simple edit - for now just show info
+            const entry = appState.entries.find(e => e.id === entryId);
+            if (entry) {
+                showNotification(`Édition de l'entrée pour ${entry.driver}`, 'success');
+            }
+        }
+
+        // Driver Management
+        function addDriver(driverName) {
+            if (driverName.trim() && !appState.drivers.includes(driverName.trim())) {
+                const newDriver = driverName.trim();
+                appState.drivers.push(newDriver);
+                
+                // Generate default password
+                const defaultPassword = newDriver.toLowerCase().slice(0, 3) + '123';
+                appState.passwords[newDriver] = defaultPassword;
+                
+                saveToStorage();
+                updateDriverSelects();
+                updateCurrentDriversList();
+                
+                showNotification(`Chauffeur ajouté ! Mot de passe par défaut: ${defaultPassword}`, 'success');
+                document.getElementById('new-driver-name').value = '';
+            }
+        }
+
+        // Month Navigation
+        function navigateMonth(direction, isAdmin = false) {
+            if (direction === 'prev') {
+                if (appState.currentMonth === 0) {
+                    appState.currentMonth = 11;
+                    appState.currentYear--;
+                } else {
+                    appState.currentMonth--;
+                }
+            } else {
+                if (appState.currentMonth === 11) {
+                    appState.currentMonth = 0;
+                    appState.currentYear++;
+                } else {
+                    appState.currentMonth++;
+                }
+            }
+            
+            if (appState.userRole === 'admin') {
+                updateAdminView();
+            } else {
+                updateDriverView();
+            }
+        }
+
+        // Form Management
+        function updateRecoveryVisibility() {
+            const recoveryType = document.querySelector('input[name="recoveryType"]:checked')?.value || 'none';
+            const singleSection = document.getElementById('single-date-section');
+            const periodSection = document.getElementById('period-dates-section');
+            
+            if (recoveryType === 'single') {
+                singleSection.classList.remove('hidden');
+                periodSection.classList.add('hidden');
+            } else if (recoveryType === 'period') {
+                singleSection.classList.add('hidden');
+                periodSection.classList.remove('hidden');
+            } else {
+                singleSection.classList.add('hidden');
+                periodSection.classList.add('hidden');
+            }
+        }
+
+        function updateDriverSelects() {
+            const entryDriverSelect = document.getElementById('entry-driver');
+            if (entryDriverSelect) {
+                entryDriverSelect.innerHTML = '<option value="">Sélectionner...</option>';
+                appState.drivers.forEach(driver => {
+                    const option = document.createElement('option');
+                    option.value = driver;
+                    option.textContent = driver;
+                    entryDriverSelect.appendChild(option);
+                });
+            }
+        }
+
+        function updateCurrentDriversList() {
+            const container = document.getElementById('current-drivers');
+            if (container) {
+                container.innerHTML = '';
+                appState.drivers.forEach(driver => {
+                    const span = document.createElement('span');
+                    span.className = 'bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs';
+                    span.textContent = driver;
+                    container.appendChild(span);
+                });
+            }
+        }
+
+        function populateMonthYearSelects() {
+            const monthSelect = document.getElementById('entry-month');
+            const yearSelect = document.getElementById('entry-year');
+            
+            if (monthSelect) {
+                for (let i = 0; i < 12; i++) {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = getMonthName(i);
+                    monthSelect.appendChild(option);
+                }
+            }
+            
+            if (yearSelect) {
+                const currentYear = new Date().getFullYear();
+                for (let i = currentYear - 3; i <= currentYear + 3; i++) {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = i;
+                    yearSelect.appendChild(option);
+                }
+            }
+        }
+
+        // Event Listeners
+        function setupEventListeners() {
+            // Login Form
+            document.getElementById('login-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                if (login(username, password)) {
+                    showNotification(`Connexion réussie ! Bienvenue ${username}`);
+                    
+                    // Check for default password warning
+                    if (appState.passwords[username] === password && 
+                        (username !== 'admin' || password === 'admin123')) {
+                        showNotification('⚠️ Vous utilisez un mot de passe par défaut. Pensez à le changer !', 'error');
+                    }
+                } else {
+                    const errorDiv = document.getElementById('login-error');
+                    errorDiv.textContent = 'Identifiants incorrects';
+                    errorDiv.classList.remove('hidden');
+                }
+            });
+
+            // Toggle Password Visibility
+            document.getElementById('toggle-password').addEventListener('click', function() {
+                const passwordInput = document.getElementById('password');
+                const icon = this.querySelector('i');
+                
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    icon.className = 'fas fa-eye-slash h-4 w-4';
+                } else {
+                    passwordInput.type = 'password';
+                    icon.className = 'fas fa-eye h-4 w-4';
+                }
+            });
+
+            // Driver Navigation
+            document.getElementById('prev-month')?.addEventListener('click', () => navigateMonth('prev'));
+            document.getElementById('next-month')?.addEventListener('click', () => navigateMonth('next'));
+            document.getElementById('driver-refresh')?.addEventListener('click', function() {
+                loadFromStorage();
+                updateDriverView();
+                showNotification('Données actualisées !');
+            });
+            document.getElementById('driver-logout')?.addEventListener('click', logout);
+
+            // Admin Navigation
+            document.getElementById('admin-prev-month')?.addEventListener('click', () => navigateMonth('prev', true));
+            document.getElementById('admin-next-month')?.addEventListener('click', () => navigateMonth('next', true));
+            document.getElementById('admin-refresh')?.addEventListener('click', function() {
+                loadFromStorage();
+                updateAdminView();
+                showNotification('Données synchronisées !');
+            });
+            document.getElementById('manual-save')?.addEventListener('click', function() {
+                saveToStorage();
+                showNotification('Données sauvegardées !');
+            });
+            document.getElementById('admin-logout')?.addEventListener('click', logout);
+
+            // Admin Navigation Tabs
+            document.getElementById('nav-dashboard')?.addEventListener('click', function() {
+                document.getElementById('nav-dashboard').className = 'px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 text-center bg-white text-indigo-600 shadow-sm';
+                document.getElementById('nav-saisie').className = 'px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 text-center text-gray-600 hover:text-gray-900';
+                
+                document.getElementById('admin-dashboard-view').classList.remove('hidden');
+                document.getElementById('admin-saisie-view').classList.add('hidden');
+                
+                updateAdminDashboardView();
+            });
+
+            document.getElementById('nav-saisie')?.addEventListener('click', function() {
+                document.getElementById('nav-saisie').className = 'px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 text-center bg-white text-indigo-600 shadow-sm';
+                document.getElementById('nav-dashboard').className = 'px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 text-center text-gray-600 hover:text-gray-900';
+                
+                document.getElementById('admin-saisie-view').classList.remove('hidden');
+                document.getElementById('admin-dashboard-view').classList.add('hidden');
+                
+                updateAdminSaisieView();
+            });
+
+            // Entry Form
+            document.getElementById('entry-form')?.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = {
+                    driver: document.getElementById('entry-driver').value,
+                    month: parseInt(document.getElementById('entry-month').value),
+                    year: parseInt(document.getElementById('entry-year').value),
+                    hoursWorked: parseFloat(document.getElementById('entry-hours-worked').value) || 0,
+                    hoursPaid: parseFloat(document.getElementById('entry-hours-paid').value) || 0,
+                    recoveryHours: parseFloat(document.getElementById('entry-hours-recovery').value) || 0,
+                    recoveryType: document.querySelector('input[name="recoveryType"]:checked')?.value || 'none',
+                    recoveryDate: document.getElementById('recovery-date')?.value || '',
+                    recoveryStartDate: document.getElementById('recovery-start-date')?.value || '',
+                    recoveryEndDate: document.getElementById('recovery-end-date')?.value || ''
+                };
+
+                if (!formData.driver || isNaN(formData.month) || isNaN(formData.year)) {
+                    showNotification('Veuillez remplir tous les champs obligatoires', 'error');
+                    return;
+                }
+
+                addEntry(formData);
+            });
+
+            // Recovery Type Radio Buttons
+            document.querySelectorAll('input[name="recoveryType"]').forEach(radio => {
+                radio.addEventListener('change', updateRecoveryVisibility);
+            });
+
+            // Quick Month Buttons
+            document.getElementById('btn-this-month')?.addEventListener('click', function() {
+                const now = new Date();
+                document.getElementById('entry-month').value = now.getMonth();
+                document.getElementById('entry-year').value = now.getFullYear();
+                updateFormPeriod();
+            });
+
+            document.getElementById('btn-last-month')?.addEventListener('click', function() {
+                const lastMonth = new Date();
+                lastMonth.setMonth(lastMonth.getMonth() - 1);
+                document.getElementById('entry-month').value = lastMonth.getMonth();
+                document.getElementById('entry-year').value = lastMonth.getFullYear();
+                updateFormPeriod();
+            });
+
+            // Form Period Update
+            function updateFormPeriod() {
+                const month = document.getElementById('entry-month').value;
+                const year = document.getElementById('entry-year').value;
+                const formPeriod = document.getElementById('form-period');
+                
+                if (month !== '' && year !== '') {
+                    formPeriod.textContent = `→ ${getMonthName(parseInt(month))} ${year}`;
+                } else {
+                    formPeriod.textContent = '';
+                }
+            }
+
+            document.getElementById('entry-month')?.addEventListener('change', updateFormPeriod);
+            document.getElementById('entry-year')?.addEventListener('change', updateFormPeriod);
+
+            // Add Driver
+            document.getElementById('add-driver-btn')?.addEventListener('click', function() {
+                const driverName = document.getElementById('new-driver-name').value;
+                addDriver(driverName);
+            });
+
+            document.getElementById('new-driver-name')?.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addDriver(this.value);
+                }
+            });
+
+            // Delete Modal
+            document.getElementById('cancel-delete')?.addEventListener('click', function() {
+                document.getElementById('delete-modal').classList.add('hidden');
+                appState.selectedEntryId = null;
+            });
+
+            document.getElementById('confirm-delete')?.addEventListener('click', confirmDeleteEntry);
+        }
+
+        // Global Functions for inline event handlers
+        window.editEntry = editEntry;
+        window.deleteEntry = deleteEntry;
+
+        // Initialize Application
+        function initApp() {
+            // Show loading for 2 seconds
+            setTimeout(() => {
+                document.getElementById('loading-screen').classList.add('hidden');
+                document.getElementById('app-container').classList.remove('hidden');
+                
+                // Load data and setup
+                loadFromStorage();
+                setupEventListeners();
+                updateDriverSelects();
+                updateCurrentDriversList();
+                populateMonthYearSelects();
+                updateRecoveryVisibility();
+                
+                console.log('✅ Application initialisée');
+                console.log('📊 État:', {
+                    drivers: appState.drivers.length,
+                    entries: appState.entries.length,
+                    currentPeriod: `${getMonthName(appState.currentMonth)} ${appState.currentYear}`
+                });
+            }, 2000);
+        }
+
+        // Start the app when DOM is loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+    </script>
+</body>
+</html>
